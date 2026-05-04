@@ -13,7 +13,7 @@ Zero subscription cost — data sourced from open-source dataset ([venelinkochev
 - Auto-enrichment fallback to binlist.net for unknown BINs
 - In-memory cache (TTL 30 minutes)
 - API Key authentication for admin endpoints
-- Docker-ready, single `docker compose up` deployment
+- Docker-ready for PostgreSQL, Go binary runs natively
 
 ---
 
@@ -50,12 +50,12 @@ Zero subscription cost — data sourced from open-source dataset ([venelinkochev
 ## Requirements
 
 - Go 1.22+
-- Docker & Docker Compose (for PostgreSQL)
+- Docker & Docker Compose (untuk PostgreSQL)
 - Git
 
 ---
 
-## Instalasi Manual (Tanpa aaPanel)
+## Instalasi Manual (Lokal / Tanpa aaPanel)
 
 ```bash
 # 1. Clone repository
@@ -64,7 +64,6 @@ cd beon-bin-api
 
 # 2. Copy dan edit konfigurasi
 cp .env.example .env
-# Edit ADMIN_API_KEY sesuai kebutuhan
 
 # 3. Jalankan PostgreSQL via Docker
 docker compose up -d postgres
@@ -74,37 +73,77 @@ bash scripts/import_csv.sh
 
 # 5. Jalankan API
 go run ./cmd/api
-
 # API tersedia di http://localhost:8080
 ```
 
 ---
 
-## Instalasi di aaPanel (Recommended Production)
+## Instalasi di aaPanel (Production)
 
-### Prasyarat di VPS/aaPanel
+### Prasyarat
 
-1. Masuk ke **aaPanel > App Store**, install:
-   - **Docker** (aktifkan Docker Manager)
-   - **PostgreSQL** (atau gunakan Docker Postgres di bawah)
+- aaPanel sudah terinstall di VPS
+- **Docker** sudah diinstall di aaPanel (App Store > Docker)
+- **Go 1.22+** sudah terinstall
 
-2. Pastikan **Go** sudah terinstall:
-   ```bash
-   # Cek versi
-   go version
+Cek Go:
+```bash
+go version
+```
 
-   # Jika belum ada, install via:
-   wget https://go.dev/dl/go1.22.3.linux-amd64.tar.gz
-   tar -C /usr/local -xzf go1.22.3.linux-amd64.tar.gz
-   echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-   source ~/.bashrc
-   ```
+Jika belum ada:
+```bash
+wget https://go.dev/dl/go1.22.3.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.22.3.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
+```
 
 ---
 
-### Step 1 — Upload / Clone Project
+### Step 1 — Install PostgreSQL via aaPanel Docker
 
-Di **aaPanel > File Manager** atau via SSH:
+Di aaPanel, masuk ke **Docker > One-Click Install**, cari **PostgreSQL** lalu klik Install.
+
+Config yang direkomendasikan:
+| Field | Value |
+|-------|-------|
+| Version | `16.x` |
+| Port | `35432` (atau port lain yang tidak bentrok) |
+| User | `postgres` |
+| Password | *(catat password yang di-generate)* |
+
+Klik **Confirm**.
+
+---
+
+### Step 2 — Buat Database `bindb`
+
+Setelah PostgreSQL container jalan, cari Container ID-nya:
+```bash
+docker ps | grep postgres
+# Contoh output: 4ce9c61a0da5   postgres:16.3 ...
+```
+
+Buat database `bindb`:
+```bash
+docker exec -it <CONTAINER_ID> psql -U postgres -c "CREATE DATABASE bindb;"
+```
+
+Jalankan migration (buat tabel):
+```bash
+docker exec -i <CONTAINER_ID> psql -U postgres -d bindb < /www/wwwroot/beon-bin-api/migrations/001_create_bins.sql
+```
+
+Verifikasi tabel terbuat:
+```bash
+docker exec -it <CONTAINER_ID> psql -U postgres -d bindb -c "\dt"
+# Harusnya muncul: public | bins | table | postgres
+```
+
+---
+
+### Step 3 — Clone Project
 
 ```bash
 cd /www/wwwroot
@@ -114,111 +153,88 @@ cd beon-bin-api
 
 ---
 
-### Step 2 — Konfigurasi Environment
+### Step 4 — Konfigurasi `.env`
 
 ```bash
 cp .env.example .env
 nano .env
 ```
 
-Isi `.env`:
+Sesuaikan dengan settingan PostgreSQL yang diinstall tadi:
 
 ```env
-DATABASE_URL=postgres://postgres:YOURPASSWORD@localhost:5432/bindb?sslmode=disable
+DATABASE_URL=postgres://postgres:PASSWORD_ANDA@localhost:35432/bindb?sslmode=disable
 PORT=8080
 ENRICHMENT_ENABLED=true
 ADMIN_API_KEY=ganti-dengan-api-key-rahasia
 ```
 
----
-
-### Step 3 — Jalankan PostgreSQL via Docker
-
-```bash
-docker compose up -d postgres
-```
-
-Verifikasi:
-```bash
-docker compose ps
-# Output: beon-bin-api-postgres-1   Up   0.0.0.0:5432->5432/tcp
-```
+> **Catatan:** Ganti `PASSWORD_ANDA` dengan password yang di-generate saat install PostgreSQL, dan `35432` dengan port yang Anda set.
 
 ---
 
-### Step 4 — Import Dataset BIN
+### Step 5 — Import Dataset BIN
 
 ```bash
+cd /www/wwwroot/beon-bin-api
 bash scripts/import_csv.sh
-# Proses: download CSV (~26MB) + import ke DB
-# Output: Done! Imported 374788 records (0 skipped)
+```
+
+Proses ini akan:
+1. Download CSV dari `venelinkochev/bin-list-data` (~26MB)
+2. Import ~374.788 records ke database
+
+Output sukses:
+```
+==> Downloading BIN dataset...
+==> Download complete: /www/wwwroot/beon-bin-api/data/bin-list-data.csv
+==> Starting import...
+Done! Imported 374788 records (0 skipped)
+==> Import finished.
 ```
 
 ---
 
-### Step 5 — Build & Jalankan API
+### Step 6 — Build Binary
 
 ```bash
-# Build binary
+cd /www/wwwroot/beon-bin-api
 go build -o beon-bin-api ./cmd/api
+```
 
-# Test manual
+Test jalankan manual:
+```bash
 ./beon-bin-api
 # Output: BIN API listening on :8080
 ```
 
 ---
 
-### Step 6 — Setup Supervisor di aaPanel (Auto-restart)
+### Step 7 — Setup Go Project di aaPanel
 
-Di aaPanel, masuk ke **App Store > Supervisor > Add Daemon**:
+Di aaPanel, masuk ke **App Store > Go Project > Add Project**:
 
 | Field | Value |
 |-------|-------|
-| Name | `beon-bin-api` |
-| Run User | `www` atau `root` |
-| Run Dir | `/www/wwwroot/beon-bin-api` |
-| Command | `/www/wwwroot/beon-bin-api/beon-bin-api` |
-| Processes | `1` |
-| Auto Start | `Yes` |
+| Executable File | `/www/wwwroot/beon-bin-api/beon-bin-api` |
+| Project Name | `beon-bin-api` |
+| Project Port | `8080` |
+| Execution Command | `beon-bin-api` |
+| Environment Variables | Pilih **Load from file** → `/www/wwwroot/beon-bin-api/.env` |
+| Run User | `root` |
+| Startup | Centang (auto-start) |
 
-Atau via SSH dengan systemd:
-
-```bash
-# Buat service file
-cat > /etc/systemd/system/beon-bin-api.service << EOF
-[Unit]
-Description=BEON BIN API
-After=network.target docker.service
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/www/wwwroot/beon-bin-api
-EnvironmentFile=/www/wwwroot/beon-bin-api/.env
-ExecStart=/www/wwwroot/beon-bin-api/beon-bin-api
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable beon-bin-api
-systemctl start beon-bin-api
-systemctl status beon-bin-api
-```
+Klik **Confirm**.
 
 ---
 
-### Step 7 — Setup Nginx Reverse Proxy di aaPanel
+### Step 8 — Setup Nginx Reverse Proxy di aaPanel
 
 Di aaPanel > **Website > Add Site**:
 - Domain: `bin-api.yourdomain.com`
-- PHP: `Pure Static` atau `No PHP`
+- PHP: `Pure Static`
 
-Lalu masuk ke **Site Settings > Config** dan tambahkan di dalam block `server {}`:
+Masuk ke **Site Settings > Config**, tambahkan di dalam block `server {}`:
 
 ```nginx
 location / {
@@ -232,18 +248,18 @@ location / {
 }
 ```
 
-Aktifkan **SSL** via aaPanel > Site Settings > SSL > Let's Encrypt.
+Aktifkan **SSL** via Site Settings > SSL > Let's Encrypt.
 
 ---
 
-### Step 8 — Verifikasi
+### Step 9 — Verifikasi
 
 ```bash
 # Health check
 curl https://bin-api.yourdomain.com/api/v1/health
 # {"status":"ok"}
 
-# Stats
+# Cek total data
 curl https://bin-api.yourdomain.com/api/v1/stats
 # {"powered_by":"BEON API","success":true,"total_bins":374788}
 
@@ -255,7 +271,7 @@ curl https://bin-api.yourdomain.com/api/v1/bin/411111
 
 ## Update Dataset BIN
 
-Data BIN jarang berubah. Untuk update manual (tiap 3 bulan):
+Data BIN jarang berubah. Update manual tiap 3 bulan:
 
 ```bash
 cd /www/wwwroot/beon-bin-api
