@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bindb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations/001_create_bins.sql:/docker-entrypoint-initdb.d/001_create_bins.sql
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/bindb?sslmode=disable
+      PORT: 8080
+      ENRICHMENT_ENABLED: "true"
+      ADMIN_API_KEY: "change-me-in-production"
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

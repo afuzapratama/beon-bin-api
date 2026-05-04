@@ -1,0 +1,17 @@
+# Environment
+.env
+
+# Binary & build outputs
+beon-bin-api
+/bin/
+
+# Dataset CSV (large file, downloaded at deploy time)
+data/*.csv
+
+# Go test cache
+*.test
+*.out
+
+# OS
+.DS_Store
+Thumbs.db
