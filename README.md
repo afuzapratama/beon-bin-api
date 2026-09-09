@@ -97,93 +97,97 @@ go run ./cmd/api
 
 - aaPanel sudah terinstall di VPS
 - **Docker** sudah diinstall di aaPanel (App Store > Docker)
-- **Go 1.26.8+** sudah terinstall
+- Go Project tersedia dan server dapat mengakses GitHub/go.dev
 
-Cek Go:
+---
+
+Model deployment yang dipakai:
+
+```text
+Internet -> aaPanel Nginx/SSL -> 127.0.0.1:8828 (binary Go)
+                              -> 127.0.0.1:5434 (PostgreSQL Compose)
+```
+
+Port aplikasi dan PostgreSQL tetap loopback-only; hanya port 80/443 Nginx yang
+dibuka ke internet.
+
+### Step 1 — Clone Project
+
+```bash
+cd /www/wwwroot
+git clone https://github.com/afuzapratama/beon-bin-api.git
+cd beon-bin-api
+git pull --ff-only origin main
+```
+
+Untuk repository private, gunakan SSH deploy key dan jangan menaruh token pada URL.
+
+---
+
+### Step 2 — Install Go
+
+Gunakan **Go Project > SDK Manage > All version**, install Go `1.26.8`, lalu
+jadikan versi tersebut sebagai command-line version. Buka ulang terminal dan cek:
+
 ```bash
 go version
 ```
 
-Jika belum ada:
-```bash
-wget https://go.dev/dl/go1.26.8.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.26.8.linux-amd64.tar.gz
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-source ~/.bashrc
-```
+Output harus menunjukkan `go1.26.8` atau patch yang lebih baru dalam seri yang
+kompatibel.
 
 ---
 
-### Step 1 — Install PostgreSQL via aaPanel Docker
-
-Di aaPanel, masuk ke **Docker > One-Click Install**, cari **PostgreSQL** lalu klik Install.
-
-Config yang direkomendasikan:
-| Field | Value |
-|-------|-------|
-| Version | `16.x` |
-| Port | `35432` (atau port lain yang tidak bentrok) |
-| User | `postgres` |
-| Password | *(catat password yang di-generate)* |
-
-Klik **Confirm**.
-
----
-
-### Step 2 — Buat Database `bindb`
-
-Setelah PostgreSQL container jalan, cari Container ID-nya:
-```bash
-docker ps | grep postgres
-# Contoh output: 4ce9c61a0da5   postgres:16.3 ...
-```
-
-Buat database `bindb`:
-```bash
-docker exec -it <CONTAINER_ID> psql -U postgres -c "CREATE DATABASE bindb;"
-```
-
-Migration tidak perlu dijalankan manual. Binary API dan importer membawa SQL
-ter-embed lalu menjalankannya berurutan saat startup dengan advisory lock,
-transaction, version, dan checksum.
-
-Setelah API pertama kali start, verifikasi status migration:
-```bash
-docker exec -it <CONTAINER_ID> psql -U postgres -d bindb \
-  -c "SELECT version, name, applied_at FROM schema_migrations ORDER BY version;"
-```
-
----
-
-### Step 3 — Clone Project
-
-```bash
-cd /www/wwwroot
-git clone git@github.com:afuzapratama/beon-bin-api.git
-cd beon-bin-api
-```
-
----
-
-### Step 4 — Konfigurasi `.env`
+### Step 3 — Konfigurasi `.env`
 
 ```bash
 cp .env.example .env
+openssl rand -hex 32
 nano .env
 ```
 
-Sesuaikan dengan settingan PostgreSQL yang diinstall tadi:
+Salin hasil `openssl` sebagai password PostgreSQL dan jangan mengirimkannya ke
+chat/log. Gunakan password hex agar aman dimasukkan ke PostgreSQL URL:
 
 ```env
-DATABASE_URL=postgres://postgres:PASSWORD_ANDA@localhost:35432/bindb?sslmode=disable
+DATABASE_URL=postgres://postgres:PASSWORD_HEX_YANG_SAMA@127.0.0.1:5434/bindb?sslmode=disable
 PORT=8828
-ENRICHMENT_ENABLED=false
-HANDY_API_KEY=your-private-handy-api-key
+
+POSTGRES_DB=bindb
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=PASSWORD_HEX_YANG_SAMA
+POSTGRES_PORT=5434
+
+ENRICHMENT_ENABLED=true
+HANDY_API_KEY=KEY_PRIVATE_HANDY
 HANDY_API_MONTHLY_LIMIT=3000
-CORS_ORIGINS=https://app.example.com
+CORS_ORIGINS=https://app.domain-anda.com
 ```
 
-> **Catatan:** Ganti `PASSWORD_ANDA` dengan password yang di-generate saat install PostgreSQL, dan `35432` dengan port yang Anda set.
+Jika API hanya dipanggil server-to-server, biarkan `CORS_ORIGINS=` kosong. Setelah
+disimpan, batasi akses file konfigurasi untuk process aaPanel:
+
+```bash
+chown root:www .env
+chmod 640 .env
+```
+
+---
+
+### Step 4 — Jalankan PostgreSQL
+
+Pastikan Docker/Compose sudah terpasang dari aaPanel App Store, lalu:
+
+```bash
+cd /www/wwwroot/beon-bin-api
+docker compose up -d postgres
+docker compose ps
+docker compose exec postgres pg_isready -U postgres -d bindb
+```
+
+Compose membuat database `bindb`, user, volume persisten, dan binding
+`127.0.0.1:5434` secara otomatis. Jangan jalankan service `api` dari Compose
+karena process API akan dikelola oleh Go Project aaPanel.
 
 ---
 
@@ -216,14 +220,20 @@ SHA-256: 0583860988c7b15d2921025ee8afe89eaf4947fe31acde8ffccfc82691d13e35
 
 ```bash
 cd /www/wwwroot/beon-bin-api
-go build -o beon-bin-api ./cmd/api
+mkdir -p bin
+go build -trimpath -ldflags="-s -w" -o bin/api ./cmd/api
+chown root:www bin/api
+chmod 750 bin/api
 ```
 
-Test jalankan manual:
+Test sebagai user runtime dari root project:
+
 ```bash
-./beon-bin-api
-# Output: BIN API listening on :8828
+sudo -u www ./bin/api
 ```
+
+Pada terminal lain, pastikan `curl http://127.0.0.1:8828/api/v1/ready`
+menghasilkan status `200`, lalu hentikan test dengan `Ctrl+C`.
 
 ---
 
@@ -233,13 +243,15 @@ Di aaPanel, masuk ke **App Store > Go Project > Add Project**:
 
 | Field | Value |
 |-------|-------|
-| Executable File | `/www/wwwroot/beon-bin-api/beon-bin-api` |
+| Executable File | `/www/wwwroot/beon-bin-api/bin/api` |
 | Project Name | `beon-bin-api` |
 | Project Port | `8828` |
-| Execution Command | `beon-bin-api` |
+| Release port | Jangan dicentang |
+| Execution Command | `/www/wwwroot/beon-bin-api/bin/api` |
 | Environment Variables | Pilih **Load from file** → `/www/wwwroot/beon-bin-api/.env` |
-| Run User | `root` |
+| Run User | `www` |
 | Startup | Centang (auto-start) |
+| Domain name | Domain API; boleh dikosongkan sampai DNS siap |
 
 Klik **Confirm**.
 

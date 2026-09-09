@@ -425,6 +425,7 @@ criteria telah diuji pada Compose stack lokal.
 - [x] Dokumentasikan `CORS_ORIGINS`, gunakan default fail-closed, dan tambahkan `Vary: Origin`
 - [x] Hapus klaim fitur admin yang belum tersedia dari README
 - [x] Perbaiki contoh Nginx `proxy_pass` dan nonaktifkan access log query pada location API
+- [x] Dokumentasikan deployment hybrid aaPanel: binary Go sebagai user `www` dan PostgreSQL Compose loopback-only
 - [x] Koreksi dokumentasi cache (`map` + mutex, bukan `sync.Map`)
 - [ ] Tambahkan file `LICENSE` karena README menyatakan MIT
 - [x] Uji `docker compose up` full stack dan smoke test seluruh endpoint
