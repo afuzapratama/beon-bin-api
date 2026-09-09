@@ -418,7 +418,7 @@ criteria telah diuji pada Compose stack lokal.
 
 ### Phase 10: Deployment & Documentation P2 ⬜
 
-- [x] Samakan versi Go pada `go.mod`, Dockerfile, README, dan tool lokal; CI memakai `go-version-file`
+- [x] Samakan Go ke 1.26.8 pada `go.mod`, Dockerfile, dan README; CI memakai `go-version-file`
 - [x] Parameterkan port Compose agar mengikuti `.env`; tambahkan PostgreSQL healthcheck dan dependency condition
 - [x] Hapus top-level Compose `version` yang sudah obsolete
 - [x] Jalankan container sebagai non-root; pin digest tetap menunggu kebijakan update

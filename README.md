@@ -62,7 +62,7 @@ Zero subscription cost — data sourced from open-source dataset ([venelinkochev
 
 ## Requirements
 
-- Go 1.26.2+
+- Go 1.26.8+
 - Docker & Docker Compose (untuk PostgreSQL)
 - Git
 
@@ -97,7 +97,7 @@ go run ./cmd/api
 
 - aaPanel sudah terinstall di VPS
 - **Docker** sudah diinstall di aaPanel (App Store > Docker)
-- **Go 1.26.2+** sudah terinstall
+- **Go 1.26.8+** sudah terinstall
 
 Cek Go:
 ```bash
@@ -106,8 +106,8 @@ go version
 
 Jika belum ada:
 ```bash
-wget https://go.dev/dl/go1.26.3.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.26.3.linux-amd64.tar.gz
+wget https://go.dev/dl/go1.26.8.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.26.8.linux-amd64.tar.gz
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 ```
@@ -416,7 +416,7 @@ Kontrak hasil lookup eksternal:
 
 | Component | Technology |
 |-----------|-----------|
-| Language | Go 1.26.2+ |
+| Language | Go 1.26.8+ |
 | Framework | Gin |
 | Database | PostgreSQL 16 |
 | Driver | sqlx + lib/pq |

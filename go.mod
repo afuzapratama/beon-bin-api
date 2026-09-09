@@ -1,6 +1,6 @@
 module github.com/beon/bin-api
 
-go 1.26.2
+go 1.26.8
 
 require (
 	github.com/gin-gonic/gin v1.12.0
