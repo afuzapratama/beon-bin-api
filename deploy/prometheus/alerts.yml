@@ -1,0 +1,49 @@
+groups:
+  - name: beon-bin-api
+    rules:
+      - alert: BINAPIDown
+        expr: up{job="beon-bin-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: BEON BIN API cannot be scraped
+          description: Prometheus has been unable to scrape the API for two minutes.
+
+      - alert: BINAPINotReady
+        expr: beon_bin_api_ready == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: BEON BIN API is not ready
+          description: The API cannot reach PostgreSQL or is shutting down.
+
+      - alert: BINAPIHighServerErrorRate
+        expr: |
+          (
+            sum(rate(beon_bin_api_http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(beon_bin_api_http_requests_total[5m]))
+          ) > 0.05
+          and
+          sum(increase(beon_bin_api_http_requests_total[5m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: BEON BIN API server error rate exceeds 5%
+          description: More than 5% of requests returned 5xx over the last ten minutes.
+
+      - alert: BINAPIHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(beon_bin_api_http_request_duration_seconds_bucket[5m]))
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: BEON BIN API p95 latency exceeds two seconds
+          description: The 95th percentile request latency has exceeded two seconds for ten minutes.

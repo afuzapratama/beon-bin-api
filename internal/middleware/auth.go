@@ -1,15 +1,23 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
-// APIKeyAuth protects admin routes with a static API key from env
-func APIKeyAuth() gin.HandlerFunc {
+// APIKeyAuth protects admin routes with a static API key validated at startup.
+func APIKeyAuth(expectedKey string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if expectedKey == "" {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
+				"success": false,
+				"error":   "Admin API is not configured",
+				"code":    503,
+			})
+			return
+		}
 		key := c.GetHeader("X-API-Key")
 		if key == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -19,7 +27,7 @@ func APIKeyAuth() gin.HandlerFunc {
 			})
 			return
 		}
-		if key != os.Getenv("ADMIN_API_KEY") {
+		if subtle.ConstantTimeCompare([]byte(key), []byte(expectedKey)) != 1 {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"success": false,
 				"error":   "Invalid API key",

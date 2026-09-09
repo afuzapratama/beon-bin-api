@@ -1,29 +1,31 @@
 package validator
 
-import "unicode"
-
-// IsValidBIN checks that a BIN is between 6 and 8 digits
+// IsValidBIN checks that a BIN is exactly 6 or 8 ASCII digits.
 func IsValidBIN(bin string) bool {
-	if len(bin) < 6 || len(bin) > 8 {
+	if len(bin) != 6 && len(bin) != 8 {
 		return false
 	}
-	for _, r := range bin {
-		if !unicode.IsDigit(r) {
+	for i := range len(bin) {
+		if bin[i] < '0' || bin[i] > '9' {
 			return false
 		}
 	}
 	return true
 }
 
-// Luhn validates a full card number using the Luhn algorithm
+// Luhn checks number syntax and checksum only. A passing result does not prove
+// that a card exists, is active, or can be used for a transaction.
 func Luhn(number string) bool {
+	if len(number) < 13 || len(number) > 19 {
+		return false
+	}
 	sum := 0
 	parity := len(number) % 2
-	for i, r := range number {
-		if !unicode.IsDigit(r) {
+	for i := range len(number) {
+		if number[i] < '0' || number[i] > '9' {
 			return false
 		}
-		digit := int(r - '0')
+		digit := int(number[i] - '0')
 		if i%2 == parity {
 			digit *= 2
 			if digit > 9 {

@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+.github
+data/*.csv
+*.test
+*.out
+beon-bin-api
+bin/
+build/
+dist/
+deploy/
+ANALISA_PROJECT.md

@@ -15,9 +15,9 @@ type BIN struct {
 	CountryName     string    `db:"country_name"     json:"country_name"`
 	CountryCode     string    `db:"country_code"     json:"country_code"`
 	CountryCurrency string    `db:"country_currency" json:"country_currency"`
-	CountryLatitude float64   `db:"country_latitude" json:"country_latitude"`
-	CountryLong     float64   `db:"country_longitude" json:"country_longitude"`
-	Prepaid         bool      `db:"prepaid"          json:"prepaid"`
+	CountryLatitude *float64  `db:"country_latitude" json:"country_latitude"`
+	CountryLong     *float64  `db:"country_longitude" json:"country_longitude"`
+	Prepaid         *bool     `db:"prepaid"          json:"prepaid"`
 	Source          string    `db:"source"           json:"source"`
 	CreatedAt       time.Time `db:"created_at"       json:"created_at"`
 	UpdatedAt       time.Time `db:"updated_at"       json:"updated_at"`
@@ -29,7 +29,7 @@ type BINResponse struct {
 	Brand    string      `json:"brand"`
 	Type     string      `json:"type"`
 	Category string      `json:"category"`
-	Prepaid  bool        `json:"prepaid"`
+	Prepaid  *bool       `json:"prepaid"`
 	Bank     BankInfo    `json:"bank"`
 	Country  CountryInfo `json:"country"`
 }
@@ -43,11 +43,11 @@ type BankInfo struct {
 
 // CountryInfo holds country details
 type CountryInfo struct {
-	Name      string  `json:"name"`
-	Code      string  `json:"code"`
-	Currency  string  `json:"currency"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
+	Name      string   `json:"name"`
+	Code      string   `json:"code"`
+	Currency  string   `json:"currency"`
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
 }
 
 // ToResponse converts a BIN record to the public API shape
