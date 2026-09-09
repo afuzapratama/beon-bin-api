@@ -108,8 +108,8 @@ Internet -> aaPanel Nginx/SSL -> 127.0.0.1:8828 (binary Go)
                               -> 127.0.0.1:5434 (PostgreSQL Compose)
 ```
 
-Port aplikasi dan PostgreSQL tetap loopback-only; hanya port 80/443 Nginx yang
-dibuka ke internet.
+PostgreSQL dibind loopback-only. Port aplikasi `8828` tidak dirilis melalui
+aaPanel/firewall; trafik publik hanya masuk melalui Nginx pada port 80/443.
 
 ### Step 1 — Clone Project
 
@@ -254,6 +254,10 @@ Di aaPanel, masuk ke **App Store > Go Project > Add Project**:
 | Domain name | Domain API; boleh dikosongkan sampai DNS siap |
 
 Klik **Confirm**.
+
+Pastikan menu **Security** aaPanel dan security group provider tidak membuka
+port `8828` atau `5434` ke internet. Port yang perlu dibuka untuk API hanya
+`80/tcp` dan `443/tcp`.
 
 ---
 
